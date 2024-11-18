@@ -1,4 +1,4 @@
-use base64::prelude::BASE64_STANDARD;
+use base64::prelude::BASE64_STANDARD_NO_PAD;
 use base64::Engine;
 use encoding_rs::{UTF_16BE, UTF_16LE, UTF_8};
 use evtx::{EvtxParser, ParserSettings};
@@ -10,7 +10,7 @@ use std::{env, str};
 use walkdir::WalkDir;
 
 fn is_base64(s: &str) -> bool {
-    match BASE64_STANDARD.decode(s) {
+    match BASE64_STANDARD_NO_PAD.decode(s) {
         Ok(_) => true,
         Err(_) => false,
     }
@@ -121,7 +121,7 @@ fn main() {
                     let tokens = tokenize(payload_str);
                     for token in tokens {
                         if is_base64(token) {
-                            let payload = BASE64_STANDARD.decode(token).unwrap();
+                            let payload = BASE64_STANDARD_NO_PAD.decode(token).unwrap();
                             let file_name = file.file_name().unwrap().to_str().unwrap();
                             if is_utf16_le(&payload) {
                                 println!(
