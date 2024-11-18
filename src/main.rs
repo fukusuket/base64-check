@@ -1,0 +1,203 @@
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
+use encoding_rs::{UTF_16BE, UTF_16LE, UTF_8};
+use evtx::{EvtxParser, ParserSettings};
+use regex::Regex;
+use serde_json::Value;
+use std::fs::File;
+use std::path::{Path, PathBuf};
+use std::{env, str};
+use walkdir::WalkDir;
+
+fn is_base64(s: &str) -> bool {
+    match BASE64_STANDARD.decode(s) {
+        Ok(_) => true,
+        Err(_) => false,
+    }
+}
+
+fn is_utf8(bytes: &[u8]) -> bool {
+    if bytes.is_empty() {
+        return false;
+    }
+    if bytes.len() < 5 {
+        return false;
+    }
+    UTF_8.decode_without_bom_handling(bytes).0.is_ascii()
+}
+
+fn is_utf16_le(bytes: &[u8]) -> bool {
+    if bytes.is_empty() {
+        return false;
+    }
+    if bytes.len() < 5 {
+        return false;
+    }
+    UTF_16LE.decode_without_bom_handling(bytes).0.is_ascii()
+}
+
+fn is_utf16_be(bytes: &[u8]) -> bool {
+    if bytes.is_empty() {
+        return false;
+    }
+    if bytes.len() < 5 {
+        return false;
+    }
+    UTF_16BE.decode_without_bom_handling(bytes).0.is_ascii()
+}
+
+fn extract_evtx_files(dir: &Path) -> Vec<PathBuf> {
+    WalkDir::new(dir)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|entry| {
+            entry.path().is_file()
+                && entry.path().extension().and_then(|s| s.to_str()) == Some("evtx")
+        })
+        .map(|entry| entry.path().to_path_buf())
+        .collect()
+}
+
+fn read_evtx_file(file_path: &Path) -> Option<EvtxParser<File>> {
+    match EvtxParser::from_path(file_path) {
+        Ok(evtx_parser) => {
+            let mut parse_config = ParserSettings::default();
+            parse_config = parse_config.separate_json_attributes(true);
+            parse_config = parse_config.num_threads(0);
+
+            let evtx_parser = evtx_parser.with_configuration(parse_config);
+            Some(evtx_parser)
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            None
+        }
+    }
+}
+
+fn extract_payload(data: &Value) -> Value {
+    let ch = data["Event"]["System"]["Channel"].as_str();
+    let id = data["Event"]["System"]["EventID"].as_i64();
+    let mut value = Value::Null;
+    if let Some(ch) = ch {
+        if let Some(id) = id {
+            if ch == "Security" && id == 4688 {
+                value = data["Event"]["EventData"]["CommandLine"].clone();
+            }
+            if ch == "Microsoft-Windows-Sysmon/Operational" && id == 1 {
+                value = data["Event"]["EventData"]["CommandLine"].clone();
+            }
+            if ch == "Microsoft-Windows-PowerShell/Operational" && id == 4103 {
+                value = data["Event"]["EventData"]["Payload"].clone();
+            }
+            if ch == "Microsoft-Windows-PowerShell/Operational" && id == 4104 {
+                value = data["Event"]["EventData"]["ScriptBlockText"].clone();
+            }
+        }
+    }
+    value
+}
+
+fn tokenize(payload_str: &str) -> Vec<&str> {
+    let re = Regex::new(r"\w+").unwrap();
+    re.find_iter(payload_str).map(|mat| mat.as_str()).collect()
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        eprintln!("Usage: {} <directory>", args[0]);
+        std::process::exit(1);
+    }
+    let dir = Path::new(&args[1]);
+    let evtx_files = extract_evtx_files(dir);
+    for file in evtx_files {
+        if let Some(mut parser) = read_evtx_file(&file) {
+            let records = parser.records_json_value();
+            for rec in records {
+                let data = &rec.as_ref().unwrap().data;
+                let payload = extract_payload(data);
+                if let Some(payload_str) = payload.as_str() {
+                    let tokens = tokenize(payload_str);
+                    for token in tokens {
+                        if is_base64(token) {
+                            let payload = BASE64_STANDARD.decode(token).unwrap();
+                            let file_name = file.file_name().unwrap().to_str().unwrap();
+                            if is_utf16_le(&payload) {
+                                println!(
+                                    "Possible Base64 + UTF-16 LE({}): {}",
+                                    file_name,
+                                    str::from_utf8(&payload).unwrap()
+                                );
+                            } else if is_utf16_be(&payload) {
+                                println!(
+                                    "Possible Base64 + UTF-16 BE({}): {}",
+                                    file_name,
+                                    str::from_utf8(&payload).unwrap()
+                                );
+                            } else if is_utf8(&payload) {
+                                println!(
+                                    "Possible Base64 + UTF-8({:?}): {}",
+                                    file_name,
+                                    str::from_utf8(&payload).unwrap()
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::string::FromUtf16Error;
+
+    fn utf16le_to_string(bytes: &[u8]) -> Result<String, FromUtf16Error> {
+        let utf16_data: Vec<u16> = bytes
+            .chunks(2)
+            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+            .collect();
+        String::from_utf16(&utf16_data)
+    }
+
+    fn utf16be_to_string(bytes: &[u8]) -> Result<String, FromUtf16Error> {
+        let utf16_data: Vec<u16> = bytes
+            .chunks(2)
+            .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
+            .collect();
+        String::from_utf16(&utf16_data)
+    }
+
+    #[test]
+    fn test_is_base64() {
+        assert!(is_base64("SGVsbG8sIHdvcmxkIQ=="));
+        assert!(!is_base64("Hello, world!"));
+    }
+
+    #[test]
+    fn test_is_utf8() {
+        assert!(is_utf8("Hello, world!".as_bytes()));
+        assert!(!is_utf8("こんにちは、世界！".as_bytes()));
+    }
+
+    #[test]
+    fn test_is_utf16() {
+        let utf16le_bytes = vec![0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00];
+        let utf16be_bytes = vec![0x00, 0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F];
+        match utf16le_to_string(&utf16le_bytes) {
+            Ok(string) => println!("utf16 Converted string: {}", string),
+            Err(e) => println!("Failed to convert: {}", e),
+        }
+        match utf16be_to_string(&utf16be_bytes) {
+            Ok(string) => println!("utf16 Converted string: {}", string),
+            Err(e) => println!("Failed to convert: {}", e),
+        }
+        assert!(is_utf16_le(utf16le_bytes.as_slice()));
+        assert!(!is_utf16_le(utf16be_bytes.as_slice()));
+        assert!(is_utf16_be(utf16be_bytes.as_slice()));
+        assert!(!is_utf16_be(utf16le_bytes.as_slice()));
+    }
+}
