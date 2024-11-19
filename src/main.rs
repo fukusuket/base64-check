@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_is_base64() {
-        assert!(is_base64("SGVsbG8sIHdvcmxkIQ=="));
+        assert!(is_base64("SGVsbG8sIHdvcmxkIQ"));
         assert!(!is_base64("Hello, world!"));
     }
 
