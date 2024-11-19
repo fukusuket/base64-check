@@ -130,6 +130,10 @@ fn process_record(
 ) -> Result<(), Box<dyn Error>> {
     let tokens = tokenize(payload_str);
     for token in tokens {
+        if token.len() < 10 {
+            // Skip short tokens
+            continue;
+        }
         if is_base64(token) {
             let payload = BASE64_STANDARD_NO_PAD.decode(token).unwrap();
             let file_name = file.file_name().unwrap().to_str().unwrap();
