@@ -8,8 +8,8 @@ use serde_json::Value;
 use std::error::Error;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::{env, str};
 use std::string::FromUtf16Error;
+use std::{env, str};
 use walkdir::WalkDir;
 
 fn is_base64(s: &str) -> bool {
@@ -148,7 +148,7 @@ fn process_record(
                     "Possible Base64 + UTF-16 LE",
                     file_name,
                     utf16_le_to_string(&payload).unwrap().as_str(),
-                    token
+                    token,
                 ])?;
             } else if is_utf16_be(&payload) {
                 println!(
@@ -161,7 +161,7 @@ fn process_record(
                     "Possible Base64 + UTF-16 BE",
                     file_name,
                     utf16_be_to_string(&payload).unwrap().as_str(),
-                    token
+                    token,
                 ])?;
             } else if is_utf8(&payload) {
                 println!(
@@ -174,7 +174,7 @@ fn process_record(
                     "Possible Base64 + UTF-8",
                     file_name,
                     str::from_utf8(&payload).unwrap(),
-                    token
+                    token,
                 ])?;
             }
         }
