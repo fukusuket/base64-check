@@ -1,9 +1,11 @@
 use base64::prelude::BASE64_STANDARD_NO_PAD;
 use base64::Engine;
+use csv::Writer;
 use encoding_rs::{UTF_16BE, UTF_16LE, UTF_8};
 use evtx::{EvtxParser, ParserSettings};
 use regex::Regex;
 use serde_json::Value;
+use std::error::Error;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::{env, str};
@@ -103,12 +105,14 @@ fn tokenize(payload_str: &str) -> Vec<&str> {
     re.find_iter(payload_str).map(|mat| mat.as_str()).collect()
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         eprintln!("Usage: {} <directory>", args[0]);
         std::process::exit(1);
     }
+    let mut wtr = Writer::from_path("output.csv")?;
+    wtr.write_record(&["Type", "Filename", "Text"])?;
     let dir = Path::new(&args[1]);
     let evtx_files = extract_evtx_files(dir);
     for file in evtx_files {
@@ -130,18 +134,33 @@ fn main() {
                                         file_name,
                                         str::from_utf8(&payload).unwrap()
                                     );
+                                    wtr.write_record(&[
+                                        "Possible Base64 + UTF-16 LE",
+                                        file_name,
+                                        str::from_utf8(&payload).unwrap(),
+                                    ])?;
                                 } else if is_utf16_be(&payload) {
                                     println!(
                                         "Possible Base64 + UTF-16 BE({}): {}",
                                         file_name,
                                         str::from_utf8(&payload).unwrap()
                                     );
+                                    wtr.write_record(&[
+                                        "Possible Base64 + UTF-16 BE",
+                                        file_name,
+                                        str::from_utf8(&payload).unwrap(),
+                                    ])?;
                                 } else if is_utf8(&payload) {
                                     println!(
                                         "Possible Base64 + UTF-8({:?}): {}",
                                         file_name,
                                         str::from_utf8(&payload).unwrap()
                                     );
+                                    wtr.write_record(&[
+                                        "Possible Base64 + UTF-8",
+                                        file_name,
+                                        str::from_utf8(&payload).unwrap(),
+                                    ])?;
                                 }
                             }
                         }
@@ -150,6 +169,9 @@ fn main() {
             }
         }
     }
+
+    wtr.flush()?;
+    Ok(())
 }
 
 #[cfg(test)]
