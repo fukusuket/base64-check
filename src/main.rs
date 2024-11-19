@@ -131,7 +131,7 @@ fn process_record(
     let tokens = tokenize(payload_str);
     for token in tokens {
         if is_base64(token) {
-            if token.chars().all(|c| c.is_alphabetic()) {
+            if token.len() < 5 || token.chars().all(|c| c.is_alphabetic()) {
                 // Skip short tokens and all alphabetic tokens
                 continue;
             }
