@@ -135,36 +135,42 @@ fn process_record(
             let file_name = file.file_name().unwrap().to_str().unwrap();
             if is_utf16_le(&payload) {
                 println!(
-                    "Possible Base64 + UTF-16 LE({}): {}",
+                    "Possible Base64 + UTF-16 LE({}): {}, {}",
                     file_name,
-                    utf16_le_to_string(&payload).unwrap()
+                    utf16_le_to_string(&payload).unwrap(),
+                    payload_str
                 );
                 wtr.write_record([
                     "Possible Base64 + UTF-16 LE",
                     file_name,
                     utf16_le_to_string(&payload).unwrap().as_str(),
+                    payload_str
                 ])?;
             } else if is_utf16_be(&payload) {
                 println!(
-                    "Possible Base64 + UTF-16 BE({}): {}",
+                    "Possible Base64 + UTF-16 BE({}): {}, {}",
                     file_name,
                     utf16_be_to_string(&payload).unwrap(),
+                    payload_str
                 );
                 wtr.write_record([
                     "Possible Base64 + UTF-16 BE",
                     file_name,
                     utf16_be_to_string(&payload).unwrap().as_str(),
+                    payload_str
                 ])?;
             } else if is_utf8(&payload) {
                 println!(
-                    "Possible Base64 + UTF-8({:?}): {}",
+                    "Possible Base64 + UTF-8({:?}): {}, {}",
                     file_name,
-                    str::from_utf8(&payload).unwrap()
+                    str::from_utf8(&payload).unwrap(),
+                    payload_str
                 );
                 wtr.write_record([
                     "Possible Base64 + UTF-8",
                     file_name,
                     str::from_utf8(&payload).unwrap(),
+                    payload_str
                 ])?;
             }
         }
@@ -179,7 +185,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         std::process::exit(1);
     }
     let mut wtr = Writer::from_path("output.csv")?;
-    wtr.write_record(["Type", "Filename", "Text"])?;
+    wtr.write_record(["Type", "Filename", "Decoded Text", "Original Text"])?;
     let dir = Path::new(&args[1]);
     let evtx_files = extract_evtx_files(dir);
     for file in evtx_files {
