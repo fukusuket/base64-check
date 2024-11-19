@@ -9,6 +9,7 @@ cargo build --release
 ```
 
 ## output
+### stdout
 ```bash
  % ./target/release/base64-check /hayabusa-sample-evtx
 Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): 0C S
@@ -19,3 +20,6 @@ Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): wlZ+a
 Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): wlZ+a
 Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): wlZ+a
 ```
+
+### file
+Simply output `output.csv` in the current directory
