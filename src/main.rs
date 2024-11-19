@@ -131,11 +131,14 @@ fn process_record(
     let tokens = tokenize(payload_str);
     for token in tokens {
         if is_base64(token) {
-            if token.len() < 10 || token.chars().all(|c| c.is_alphabetic()) {
+            if token.chars().all(|c| c.is_alphabetic()) {
                 // Skip short tokens and all alphabetic tokens
                 continue;
             }
-            let payload = BASE64_STANDARD_NO_PAD.decode(token).unwrap();
+            let payload = match BASE64_STANDARD_NO_PAD.decode(token) {
+                Ok(payload) => payload,
+                Err(_) => BASE64_STANDARD.decode(token).unwrap(),
+            };
             let file_name = file.file_name().unwrap().to_str().unwrap();
             if is_utf16_le(&payload) {
                 println!(
