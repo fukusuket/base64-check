@@ -1,5 +1,5 @@
 [package]
-name = "base64-check"
+name = "base64-utf-detect"
 version = "0.1.0"
 edition = "2021"
 
