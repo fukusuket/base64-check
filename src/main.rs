@@ -1,4 +1,4 @@
-use base64::prelude::BASE64_STANDARD_NO_PAD;
+use base64::prelude::{BASE64_STANDARD, BASE64_STANDARD_NO_PAD};
 use base64::Engine;
 use csv::Writer;
 use encoding_rs::{UTF_16BE, UTF_16LE, UTF_8};
@@ -12,9 +12,10 @@ use std::{env, str};
 use walkdir::WalkDir;
 
 fn is_base64(s: &str) -> bool {
-    match BASE64_STANDARD_NO_PAD.decode(s) {
-        Ok(_) => true,
-        Err(_) => false,
+    if BASE64_STANDARD_NO_PAD.decode(s).is_ok() {
+        true
+    } else {
+        BASE64_STANDARD.decode(s).is_ok()
     }
 }
 
@@ -106,7 +107,7 @@ fn tokenize(payload_str: &str) -> Vec<&str> {
 }
 fn process_record(
     wtr: &mut Writer<File>,
-    file: &PathBuf,
+    file: &Path,
     payload_str: &str,
 ) -> Result<(), Box<dyn Error>> {
     let tokens = tokenize(payload_str);
@@ -120,7 +121,7 @@ fn process_record(
                     file_name,
                     str::from_utf8(&payload).unwrap()
                 );
-                wtr.write_record(&[
+                wtr.write_record([
                     "Possible Base64 + UTF-16 LE",
                     file_name,
                     str::from_utf8(&payload).unwrap(),
@@ -131,7 +132,7 @@ fn process_record(
                     file_name,
                     str::from_utf8(&payload).unwrap()
                 );
-                wtr.write_record(&[
+                wtr.write_record([
                     "Possible Base64 + UTF-16 BE",
                     file_name,
                     str::from_utf8(&payload).unwrap(),
@@ -142,7 +143,7 @@ fn process_record(
                     file_name,
                     str::from_utf8(&payload).unwrap()
                 );
-                wtr.write_record(&[
+                wtr.write_record([
                     "Possible Base64 + UTF-8",
                     file_name,
                     str::from_utf8(&payload).unwrap(),
@@ -160,7 +161,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         std::process::exit(1);
     }
     let mut wtr = Writer::from_path("output.csv")?;
-    wtr.write_record(&["Type", "Filename", "Text"])?;
+    wtr.write_record(["Type", "Filename", "Text"])?;
     let dir = Path::new(&args[1]);
     let evtx_files = extract_evtx_files(dir);
     for file in evtx_files {
@@ -205,6 +206,7 @@ mod tests {
     #[test]
     fn test_is_base64() {
         assert!(is_base64("SGVsbG8sIHdvcmxkIQ"));
+        assert!(is_base64("SGVsbG8sIHdvcmxkIQ=="));
         assert!(!is_base64("Hello, world!"));
     }
 
