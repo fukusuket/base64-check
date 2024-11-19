@@ -5,7 +5,7 @@ This is a tool to check if the data in the evtx file is base64 encoded and if it
 ## how-to-use
 ```bash
 cargo build --release
-./target/release/base64-check <evtx-directory>
+./target/release/base64-utf-detect <evtx-directory>
 ```
 
 ## output
