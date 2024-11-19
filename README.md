@@ -11,7 +11,7 @@ cargo build --release
 ## output
 ### stdout
 ```bash
- % ./target/release/base64-check /hayabusa-sample-evtx
+ % ./target/release/base64-utf-detect /hayabusa-sample-evtx
 Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): 0C S
 Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): 0C S
 Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): wlZ+a
