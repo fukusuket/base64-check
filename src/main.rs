@@ -138,39 +138,39 @@ fn process_record(
                     "Possible Base64 + UTF-16 LE({}): {}, {}",
                     file_name,
                     utf16_le_to_string(&payload).unwrap(),
-                    payload_str
+                    token
                 );
                 wtr.write_record([
                     "Possible Base64 + UTF-16 LE",
                     file_name,
                     utf16_le_to_string(&payload).unwrap().as_str(),
-                    payload_str
+                    token
                 ])?;
             } else if is_utf16_be(&payload) {
                 println!(
                     "Possible Base64 + UTF-16 BE({}): {}, {}",
                     file_name,
                     utf16_be_to_string(&payload).unwrap(),
-                    payload_str
+                    token
                 );
                 wtr.write_record([
                     "Possible Base64 + UTF-16 BE",
                     file_name,
                     utf16_be_to_string(&payload).unwrap().as_str(),
-                    payload_str
+                    token
                 ])?;
             } else if is_utf8(&payload) {
                 println!(
                     "Possible Base64 + UTF-8({:?}): {}, {}",
                     file_name,
                     str::from_utf8(&payload).unwrap(),
-                    payload_str
+                    token
                 );
                 wtr.write_record([
                     "Possible Base64 + UTF-8",
                     file_name,
                     str::from_utf8(&payload).unwrap(),
-                    payload_str
+                    token
                 ])?;
             }
         }
