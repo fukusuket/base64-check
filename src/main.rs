@@ -104,6 +104,54 @@ fn tokenize(payload_str: &str) -> Vec<&str> {
     let re = Regex::new(r"\w+").unwrap();
     re.find_iter(payload_str).map(|mat| mat.as_str()).collect()
 }
+fn process_record(
+    wtr: &mut Writer<File>,
+    file: &PathBuf,
+    payload_str: &str,
+) -> Result<(), Box<dyn Error>> {
+    let tokens = tokenize(payload_str);
+    for token in tokens {
+        if is_base64(token) {
+            let payload = BASE64_STANDARD_NO_PAD.decode(token).unwrap();
+            let file_name = file.file_name().unwrap().to_str().unwrap();
+            if is_utf16_le(&payload) {
+                println!(
+                    "Possible Base64 + UTF-16 LE({}): {}",
+                    file_name,
+                    str::from_utf8(&payload).unwrap()
+                );
+                wtr.write_record(&[
+                    "Possible Base64 + UTF-16 LE",
+                    file_name,
+                    str::from_utf8(&payload).unwrap(),
+                ])?;
+            } else if is_utf16_be(&payload) {
+                println!(
+                    "Possible Base64 + UTF-16 BE({}): {}",
+                    file_name,
+                    str::from_utf8(&payload).unwrap()
+                );
+                wtr.write_record(&[
+                    "Possible Base64 + UTF-16 BE",
+                    file_name,
+                    str::from_utf8(&payload).unwrap(),
+                ])?;
+            } else if is_utf8(&payload) {
+                println!(
+                    "Possible Base64 + UTF-8({:?}): {}",
+                    file_name,
+                    str::from_utf8(&payload).unwrap()
+                );
+                wtr.write_record(&[
+                    "Possible Base64 + UTF-8",
+                    file_name,
+                    str::from_utf8(&payload).unwrap(),
+                ])?;
+            }
+        }
+    }
+    Ok(())
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
@@ -119,51 +167,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         if let Some(mut parser) = read_evtx_file(&file) {
             let records = parser.records_json_value();
             for rec in records {
-                let data = &rec.as_ref();
-                if let Ok(data) = data {
-                    let payload = extract_payload(&data.data);
+                if let Ok(rec_data) = &rec.as_ref() {
+                    let payload = extract_payload(&rec_data.data);
                     if let Some(payload_str) = payload.as_str() {
-                        let tokens = tokenize(payload_str);
-                        for token in tokens {
-                            if is_base64(token) {
-                                let payload = BASE64_STANDARD_NO_PAD.decode(token).unwrap();
-                                let file_name = file.file_name().unwrap().to_str().unwrap();
-                                if is_utf16_le(&payload) {
-                                    println!(
-                                        "Possible Base64 + UTF-16 LE({}): {}",
-                                        file_name,
-                                        str::from_utf8(&payload).unwrap()
-                                    );
-                                    wtr.write_record(&[
-                                        "Possible Base64 + UTF-16 LE",
-                                        file_name,
-                                        str::from_utf8(&payload).unwrap(),
-                                    ])?;
-                                } else if is_utf16_be(&payload) {
-                                    println!(
-                                        "Possible Base64 + UTF-16 BE({}): {}",
-                                        file_name,
-                                        str::from_utf8(&payload).unwrap()
-                                    );
-                                    wtr.write_record(&[
-                                        "Possible Base64 + UTF-16 BE",
-                                        file_name,
-                                        str::from_utf8(&payload).unwrap(),
-                                    ])?;
-                                } else if is_utf8(&payload) {
-                                    println!(
-                                        "Possible Base64 + UTF-8({:?}): {}",
-                                        file_name,
-                                        str::from_utf8(&payload).unwrap()
-                                    );
-                                    wtr.write_record(&[
-                                        "Possible Base64 + UTF-8",
-                                        file_name,
-                                        str::from_utf8(&payload).unwrap(),
-                                    ])?;
-                                }
-                            }
-                        }
+                        process_record(&mut wtr, &file, payload_str)?;
                     }
                 }
             }
