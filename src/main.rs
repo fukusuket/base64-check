@@ -130,11 +130,11 @@ fn process_record(
 ) -> Result<(), Box<dyn Error>> {
     let tokens = tokenize(payload_str);
     for token in tokens {
-        if token.len() < 10 || token.chars().all(|c| c.is_alphabetic()) {
-            // Skip short tokens and all alphabetic tokens
-            continue;
-        }
         if is_base64(token) {
+            if token.len() < 10 || token.chars().all(|c| c.is_alphabetic()) {
+                // Skip short tokens and all alphabetic tokens
+                continue;
+            }
             let payload = BASE64_STANDARD_NO_PAD.decode(token).unwrap();
             let file_name = file.file_name().unwrap().to_str().unwrap();
             if is_utf16_le(&payload) {
