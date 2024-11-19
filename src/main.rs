@@ -9,6 +9,7 @@ use std::error::Error;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::{env, str};
+use std::string::FromUtf16Error;
 use walkdir::WalkDir;
 
 fn is_base64(s: &str) -> bool {
@@ -105,6 +106,23 @@ fn tokenize(payload_str: &str) -> Vec<&str> {
     let re = Regex::new(r"\w+").unwrap();
     re.find_iter(payload_str).map(|mat| mat.as_str()).collect()
 }
+
+fn utf16_le_to_string(bytes: &[u8]) -> Result<String, FromUtf16Error> {
+    let utf16_data: Vec<u16> = bytes
+        .chunks(2)
+        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+        .collect();
+    String::from_utf16(&utf16_data)
+}
+
+fn utf16_be_to_string(bytes: &[u8]) -> Result<String, FromUtf16Error> {
+    let utf16_data: Vec<u16> = bytes
+        .chunks(2)
+        .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
+        .collect();
+    String::from_utf16(&utf16_data)
+}
+
 fn process_record(
     wtr: &mut Writer<File>,
     file: &Path,
@@ -119,23 +137,23 @@ fn process_record(
                 println!(
                     "Possible Base64 + UTF-16 LE({}): {}",
                     file_name,
-                    str::from_utf8(&payload).unwrap()
+                    utf16_le_to_string(&payload).unwrap()
                 );
                 wtr.write_record([
                     "Possible Base64 + UTF-16 LE",
                     file_name,
-                    str::from_utf8(&payload).unwrap(),
+                    utf16_le_to_string(&payload).unwrap().as_str(),
                 ])?;
             } else if is_utf16_be(&payload) {
                 println!(
                     "Possible Base64 + UTF-16 BE({}): {}",
                     file_name,
-                    str::from_utf8(&payload).unwrap()
+                    utf16_be_to_string(&payload).unwrap(),
                 );
                 wtr.write_record([
                     "Possible Base64 + UTF-16 BE",
                     file_name,
-                    str::from_utf8(&payload).unwrap(),
+                    utf16_be_to_string(&payload).unwrap().as_str(),
                 ])?;
             } else if is_utf8(&payload) {
                 println!(
