@@ -79,27 +79,30 @@ fn read_evtx_file(file_path: &Path) -> Option<EvtxParser<File>> {
     }
 }
 
-fn extract_payload(data: &Value) -> Value {
+fn extract_payload(data: &Value) -> Vec<Value> {
     let ch = data["Event"]["System"]["Channel"].as_str();
     let id = data["Event"]["System"]["EventID"].as_i64();
-    let mut value = Value::Null;
+    let mut values = vec![];
     if let Some(ch) = ch {
         if let Some(id) = id {
             if ch == "Security" && id == 4688 {
-                value = data["Event"]["EventData"]["CommandLine"].clone();
-            }
-            if ch == "Microsoft-Windows-Sysmon/Operational" && id == 1 {
-                value = data["Event"]["EventData"]["CommandLine"].clone();
-            }
-            if ch == "Microsoft-Windows-PowerShell/Operational" && id == 4103 {
-                value = data["Event"]["EventData"]["Payload"].clone();
-            }
-            if ch == "Microsoft-Windows-PowerShell/Operational" && id == 4104 {
-                value = data["Event"]["EventData"]["ScriptBlockText"].clone();
+                let v = data["Event"]["EventData"]["CommandLine"].clone();
+                values.push(v);
+            } else if ch == "Microsoft-Windows-Sysmon/Operational" && id == 1 {
+                let v = data["Event"]["EventData"]["CommandLine"].clone();
+                values.push(v);
+                let v = data["Event"]["EventData"]["ParentCommandLine"].clone();
+                values.push(v);
+            } else if ch == "Microsoft-Windows-PowerShell/Operational" && id == 4104 {
+                let v = data["Event"]["EventData"]["ScriptBlockText"].clone();
+                values.push(v);
+            } else if ch == "Microsoft-Windows-PowerShell/Operational" && id == 4103 {
+                let v = data["Event"]["EventData"]["Payload"].clone();
+                values.push(v);
             }
         }
     }
-    value
+    values.iter().filter(|v| !v.is_null()).cloned().collect()
 }
 
 fn tokenize(payload_str: &str) -> Vec<&str> {
@@ -200,15 +203,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             let records = parser.records_json_value();
             for rec in records {
                 if let Ok(rec_data) = &rec.as_ref() {
-                    let payload = extract_payload(&rec_data.data);
-                    if let Some(payload_str) = payload.as_str() {
-                        process_record(&mut wtr, &file, payload_str)?;
+                    let payloads = extract_payload(&rec_data.data);
+                    for payload in payloads {
+                        if let Some(payload_str) = payload.as_str() {
+                            process_record(&mut wtr, &file, payload_str)?;
+                        }
                     }
                 }
             }
         }
     }
-
     wtr.flush()?;
     Ok(())
 }
