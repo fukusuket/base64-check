@@ -31,17 +31,12 @@ cargo build --release
 ### Stdout
 ```bash
  % ./target/release/base64-utf-detect /hayabusa-sample-evtx
-Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): 0C S
-Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): 0C S
-Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): wlZ+a
-Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): wlZ+a
-Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): wlZ+a
-Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): wlZ+a
-Possible Base64 + UTF-8("Powershell-Invoke-Obfuscation-many.evtx"): wlZ+a
+ Possible Base64 + UTF-8("Microsoft-Windows-Sysmon%4Operational.evtx"): {"request_sequence":0}, eyJyZXF1ZXN0X3NlcXVlbmNlIjowfQ
 ```
 
 ### File
 Simply output `output.csv` in the current directory
 ```csv
 Type,Filename,Decoded Text,Original Text
+Possible Base64 + UTF-8("Microsoft-Windows-Sysmon%4Operational.evtx"): {"request_sequence":0}, eyJyZXF1ZXN0X3NlcXVlbmNlIjowfQ
 ```
