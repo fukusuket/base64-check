@@ -182,6 +182,22 @@ fn process_record(
                     str::from_utf8(&payload).unwrap(),
                     token,
                 ])?;
+            } else {
+                let kind = infer::get(&payload);
+                if let Some(k) = kind {
+                        println!(
+                            "Possible Base64 + binary({:?}): {}, {}",
+                            file_name,
+                            k.to_string().as_str(),
+                            token
+                        );
+                        wtr.write_record([
+                            "Possible Base64 + binary",
+                            file_name,
+                            k.to_string().as_str(),
+                            token,
+                        ])?;
+                };
             }
         }
     }
