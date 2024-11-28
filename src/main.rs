@@ -106,7 +106,7 @@ fn extract_payload(data: &Value) -> Vec<Value> {
 }
 
 fn tokenize(payload_str: &str) -> Vec<&str> {
-    let re = Regex::new(r"\w+").unwrap();
+    let re = Regex::new(r"[\w+/]+").unwrap();
     re.find_iter(payload_str).map(|mat| mat.as_str()).collect()
 }
 
