@@ -10,7 +10,10 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::string::FromUtf16Error;
 use std::{env, str};
+use std::sync::LazyLock;
 use walkdir::WalkDir;
+
+static TOKEN_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\w+/]+").unwrap());
 
 fn is_base64(s: &str) -> bool {
     if BASE64_STANDARD_NO_PAD.decode(s).is_ok() {
@@ -106,8 +109,7 @@ fn extract_payload(data: &Value) -> Vec<Value> {
 }
 
 fn tokenize(payload_str: &str) -> Vec<&str> {
-    let re = Regex::new(r"[\w+/]+").unwrap();
-    re.find_iter(payload_str).map(|mat| mat.as_str()).collect()
+    TOKEN_REGEX.find_iter(payload_str).map(|mat| mat.as_str()).collect()
 }
 
 fn utf16_le_to_string(bytes: &[u8]) -> Result<String, FromUtf16Error> {
