@@ -315,11 +315,13 @@ fn process_record(
             if matches!(b64, Base64Data::Unknown(_)) {
                 continue;
             }
+            let original = possible_base64.replace(b64.base64().as_str(), "<Base64String>");
             let row = vec![
                 evtx.ts.clone(),
                 evtx.computer.clone(),
                 b64.base64(),
                 b64.decoded(),
+                original,
                 b64.len().to_string(),
                 b64.is_binary(),
                 b64.is_double_encoding(),
@@ -358,6 +360,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "Computer",
         "Base64 String",
         "Decoded String",
+        "Original Field",
         "Length",
         "Binary",
         "Double Encoding",
