@@ -7,6 +7,7 @@ use comfy_table::{Cell, CellAlignment, ContentArrangement, Table};
 use csv::Writer;
 use encoding_rs::{UTF_16BE, UTF_16LE, UTF_8};
 use evtx::{EvtxParser, ParserSettings};
+use indicatif::{ProgressBar, ProgressDrawTarget};
 use infer::Type;
 use regex::Regex;
 use serde_json::Value;
@@ -15,6 +16,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::string::FromUtf16Error;
 use std::sync::LazyLock;
+use std::time::Duration;
 use std::{env, fmt, str};
 use walkdir::WalkDir;
 
@@ -349,6 +351,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .apply_modifier(UTF8_ROUND_CORNERS)
         .set_content_arrangement(ContentArrangement::DynamicFullWidth)
         .set_header(header_cells);
+
     let mut wtr = Writer::from_path("output.csv")?;
     let csv_header = vec![
         "Timestamp",
@@ -367,6 +370,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     wtr.write_record(csv_header)?;
     let dir = Path::new(&args[1]);
     let evtx_files = extract_evtx_files(dir);
+
+    let pb = ProgressBar::with_draw_target(
+        Some(evtx_files.len() as u64),
+        ProgressDrawTarget::stdout_with_hz(10),
+    )
+    .with_tab_width(55);
+    pb.enable_steady_tick(Duration::from_millis(300));
+
     for file in evtx_files {
         if let Some(mut parser) = read_evtx_file(&file) {
             let records = parser.records_json_value();
@@ -385,7 +396,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
         }
+        pb.inc(1);
     }
+    pb.finish_with_message("Done");
     println!("{table}");
     wtr.flush()?;
     Ok(())
