@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 base64 = "0.22.1"
+comfy-table = "7.*"
 evtx = "0.8.4"
 encoding_rs = "0.8.35"
 walkdir = "2.5.0"
