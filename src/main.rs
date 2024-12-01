@@ -413,23 +413,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::string::FromUtf16Error;
-
-    fn utf16le_to_string(bytes: &[u8]) -> Result<String, FromUtf16Error> {
-        let utf16_data: Vec<u16> = bytes
-            .chunks(2)
-            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-            .collect();
-        String::from_utf16(&utf16_data)
-    }
-
-    fn utf16be_to_string(bytes: &[u8]) -> Result<String, FromUtf16Error> {
-        let utf16_data: Vec<u16> = bytes
-            .chunks(2)
-            .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
-            .collect();
-        String::from_utf16(&utf16_data)
-    }
 
     #[test]
     fn test_is_base64() {
@@ -448,14 +431,6 @@ mod tests {
     fn test_is_utf16() {
         let utf16le_bytes = vec![0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00];
         let utf16be_bytes = vec![0x00, 0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F];
-        match utf16le_to_string(&utf16le_bytes) {
-            Ok(string) => println!("utf16 Converted string: {}", string),
-            Err(e) => println!("Failed to convert: {}", e),
-        }
-        match utf16be_to_string(&utf16be_bytes) {
-            Ok(string) => println!("utf16 Converted string: {}", string),
-            Err(e) => println!("Failed to convert: {}", e),
-        }
         assert!(is_utf16_le(utf16le_bytes.as_slice()));
         assert!(!is_utf16_le(utf16be_bytes.as_slice()));
         assert!(is_utf16_be(utf16be_bytes.as_slice()));
