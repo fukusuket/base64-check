@@ -1,4 +1,3 @@
-use crate::Base64Data::Unknown;
 use base64::prelude::{BASE64_STANDARD, BASE64_STANDARD_NO_PAD};
 use base64::Engine;
 use comfy_table::modifiers::UTF8_ROUND_CORNERS;
@@ -93,7 +92,7 @@ impl Base64Data {
                 return Base64Data::Binary(token.to_string(), payload.to_vec(), Some(k));
             }
         }
-        Unknown(token.to_string())
+        Base64Data::Unknown(token.to_string())
     }
 
     fn base64(&self) -> String {
@@ -167,7 +166,7 @@ impl fmt::Display for Base64Data {
             Base64Data::Utf16Le(_, _) => write!(f, "UTF-16 LE"),
             Base64Data::Utf16Be(_, _) => write!(f, "UTF-16 BE"),
             Base64Data::Binary(_, _, _) => write!(f, "Binary"),
-            Unknown(_) => write!(f, "Unknown"),
+            Base64Data::Unknown(_) => write!(f, "Unknown"),
         }
     }
 }
