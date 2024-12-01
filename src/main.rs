@@ -50,19 +50,19 @@ impl EvtxInfo {
 
 #[derive(Clone)]
 enum Event {
-    Security4688,
+    Sec4688,
     Sysmon1,
-    PowerShell4104,
-    PowerShell4103,
+    PwSh4104,
+    PwSh4103,
 }
 
 impl fmt::Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Event::Security4688 => write!(f, "Sec 4688"),
+            Event::Sec4688 => write!(f, "Sec 4688"),
             Event::Sysmon1 => write!(f, "Sysmon 1"),
-            Event::PowerShell4104 => write!(f, "PwSh 4104"),
-            Event::PowerShell4103 => write!(f, "PwSh 4103"),
+            Event::PwSh4104 => write!(f, "PwSh 4104"),
+            Event::PwSh4103 => write!(f, "PwSh 4103"),
         }
     }
 }
@@ -246,7 +246,7 @@ fn extract_payload(data: &Value) -> Vec<(Value, Event)> {
         if let Some(id) = id {
             if ch == "Security" && id == 4688 {
                 let v = data["Event"]["EventData"]["CommandLine"].clone();
-                values.push((v, Event::Security4688));
+                values.push((v, Event::Sec4688));
             } else if ch == "Microsoft-Windows-Sysmon/Operational" && id == 1 {
                 let v = data["Event"]["EventData"]["CommandLine"].clone();
                 values.push((v, Event::Sysmon1));
@@ -254,10 +254,10 @@ fn extract_payload(data: &Value) -> Vec<(Value, Event)> {
                 values.push((v, Event::Sysmon1));
             } else if ch == "Microsoft-Windows-PowerShell/Operational" && id == 4104 {
                 let v = data["Event"]["EventData"]["ScriptBlockText"].clone();
-                values.push((v, Event::PowerShell4104));
+                values.push((v, Event::PwSh4104));
             } else if ch == "Microsoft-Windows-PowerShell/Operational" && id == 4103 {
                 let v = data["Event"]["EventData"]["Payload"].clone();
-                values.push((v, Event::PowerShell4103));
+                values.push((v, Event::PwSh4103));
             }
         }
     }
@@ -341,17 +341,40 @@ fn main() -> Result<(), Box<dyn Error>> {
         eprintln!("Usage: {} <directory>", args[0]);
         std::process::exit(1);
     }
+    let dir = Path::new(&args[1]);
+    let evtx_files = extract_evtx_files(dir);
+
+    let pb = ProgressBar::with_draw_target(
+        Some(evtx_files.len() as u64),
+        ProgressDrawTarget::stdout_with_hz(10),
+    )
+    .with_tab_width(55);
+    pb.enable_steady_tick(Duration::from_millis(300));
+    let mut all_records = Vec::new();
+    for file in evtx_files {
+        if let Some(mut parser) = read_evtx_file(&file) {
+            let records = parser.records_json_value();
+            for rec in records {
+                if let Ok(rec_data) = &rec.as_ref() {
+                    let possible_base64_contains_strings = extract_payload(&rec_data.data);
+                    for (possible_base64, e) in possible_base64_contains_strings {
+                        if let Some(possible_base64) = possible_base64.as_str() {
+                            let rows = process_record(&file, possible_base64, &rec_data.data, e);
+                            all_records.extend(rows);
+                        }
+                    }
+                }
+            }
+        }
+        pb.inc(1);
+    }
+    pb.finish_with_message("Done");
+
     let header = vec!["Timestamp", "Computer", "Base64 String", "Decoded String"];
     let mut header_cells = vec![];
     for header_str in &header {
         header_cells.push(Cell::new(header_str).set_alignment(CellAlignment::Center));
     }
-    let mut table = Table::new();
-    table
-        .load_preset(UTF8_FULL)
-        .apply_modifier(UTF8_ROUND_CORNERS)
-        .set_content_arrangement(ContentArrangement::DynamicFullWidth)
-        .set_header(header_cells);
 
     let mut wtr = Writer::from_path("output.csv")?;
     let csv_header = vec![
@@ -370,37 +393,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         "File Name",
     ];
     wtr.write_record(csv_header)?;
-    let dir = Path::new(&args[1]);
-    let evtx_files = extract_evtx_files(dir);
 
-    let pb = ProgressBar::with_draw_target(
-        Some(evtx_files.len() as u64),
-        ProgressDrawTarget::stdout_with_hz(10),
-    )
-    .with_tab_width(55);
-    pb.enable_steady_tick(Duration::from_millis(300));
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS)
+        .set_content_arrangement(ContentArrangement::DynamicFullWidth)
+        .set_header(header_cells);
 
-    for file in evtx_files {
-        if let Some(mut parser) = read_evtx_file(&file) {
-            let records = parser.records_json_value();
-            for rec in records {
-                if let Ok(rec_data) = &rec.as_ref() {
-                    let possible_base64_contains_strings = extract_payload(&rec_data.data);
-                    for (possible_base64, e) in possible_base64_contains_strings {
-                        if let Some(possible_base64) = possible_base64.as_str() {
-                            let rows = process_record(&file, possible_base64, &rec_data.data, e);
-                            for row in rows {
-                                table.add_row(&row[0..4]);
-                                wtr.write_record(&row)?;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        pb.inc(1);
+    for row in all_records.iter() {
+        table.add_row(&row[0..4]);
+        wtr.write_record(&*row)?;
     }
-    pb.finish_with_message("Done");
     println!("{table}");
     wtr.flush()?;
     Ok(())
